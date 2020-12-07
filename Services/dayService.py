@@ -6,8 +6,7 @@ import datetime
 import threading
 import time
 import re
-import rx  
-
+  
 class DayService():
     def __init__(self):
         super().__init__()

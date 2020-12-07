@@ -39,7 +39,7 @@ class AnalysisService():
             insertAnalysisSenList = []
             for i in range(0,newDateCount):
                 lastDate = daysData[i+dayNum-1][0]
-                insertAnalysisDayDataList = [str(round(day[1])) for day in daysData[i:i+dayNum]]
+                insertAnalysisDayDataList = [str(round(day[1]*2)/2) for day in daysData[i:i+dayNum]]
                 insertAnalysisDayDataListSen = ','.join(insertAnalysisDayDataList)
                 insertAnalysisSen = '("%s",%s)' % (lastDate,insertAnalysisDayDataListSen)
                 insertAnalysisSenList.append(insertAnalysisSen)
@@ -61,9 +61,9 @@ class AnalysisService():
         analysisDatabase = SqlService('analysis_%sdays' % dayNum)
         adata = analysisDatabase.GetData(stockId)
         for item in adata:
-            trend = str(item[1:6]).strip('(').strip(')')
+            trend = str(item[1:dayNum]).strip('(').strip(')')
             d_date = item[0]
-            d_day = item[6]
+            d_day = item[dayNum]
             dayDataSen = '(\"%s\",\"%s\",\"%s\",\"%s\",%s)' % (trend,classId,stockId,d_date,d_day)
             dayDataSens.append(dayDataSen)
         if not dayDataSens == []:
@@ -99,16 +99,20 @@ class AnalysisService():
             
     @staticmethod
     def Update(dayNum,classIds=[]):
-        print('Updating analysis database')
+        print('Updating %s days analysis database' % dayNum)
         AnalysisService._updateAnalysisDataInStock(dayNum,classIds)
         if classIds == []: classIds = SummaryService.GetClassIds()
         stockIds = SummaryService.GetStockIds(classIds)
         threads = []
-        for stockId in tqdm(stockIds):
-            t = threading.Thread()
-            threads.append(AnalysisService._insertAnalysisDateIntoClassByStockId,arg=(stockId,))
-        for thread in threads:
-            thread.start()
+        for stockId in stockIds:
+            t = threading.Thread(target=AnalysisService._insertAnalysisDateIntoClassByStockId ,args=(stockId,dayNum))
+            threads.append(t)
+        for thread in tqdm(threads):
+            while 1:
+                if len(threading.enumerate())<32+8:
+                    thread.start()
+                    time.sleep(0.02)
+                    break
         for thread in threads:
             thread.join()
         print('Update Done!')
